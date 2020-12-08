@@ -11,6 +11,7 @@ conn_client = MongoClient(
 )
 db = conn_client["DisJoin_data"]
 store_list_collection = db["storeList"]
+user_list_collection = db["userList"]
 
 
 @app.route("/api/v1/stores", methods=["GET"])
@@ -31,8 +32,31 @@ def create_store_record():
     data = request.get_json()
     try:
         # data["sid"] = len(store_list) + 1  # needs improvisation
-        data["sid"] = uuid.uuid4()
+        data["sid"] = str(uuid.uuid4())
         record_created = store_list_collection.insert(data)
+        return "", 201
+    except Exception as e:
+        return e, 500
+
+
+@app.route("/api/v1/users", methods=["GET"])
+def get_all_users():
+    try:
+        query = user_list_collection.find()
+        user_list = [user for user in query]
+
+        return dumps(user_list), 200
+
+    except Exception as e:
+        return e, 500
+
+
+@app.route("/api/v1/users", methods=["POST"])
+def create_user_record():
+    data = request.get_json()
+    try:
+        data["uid"] = str(uuid.uuid4())
+        record_created = user_list_collection.insert(data)
         return "", 201
     except Exception as e:
         return e, 500
@@ -40,15 +64,20 @@ def create_store_record():
 
 def within_range(store_list, center_point, radius):
     response_list = []
-    for store in store_list:
-        points = store["coordinates"]
-        store_point_tuple = tuple(points)
-        center_point_tuple = tuple(center_point)
+    try:
+        for store in store_list:
+            points = store["coordinates"]
+            store_point_tuple = tuple(points)
+            center_point_tuple = tuple(center_point)
 
-        dis = distance.distance(center_point_tuple, store_point_tuple).km
+            dis = distance.distance(center_point_tuple, store_point_tuple).miles
 
-        if dis <= radius:
-            response_list.append(store)
+            if dis <= radius:
+                response_list.append(store)
+
+        return response_list, 200
+    except Exception as e:
+        return e, 500
 
 
 @app.route("/api/v1/geofence_stores", methods=["GET"])
@@ -62,12 +91,13 @@ def get_stores_by_geofence():
         center_point = data["center"]
         radius = data["radius"]
 
-        response_list = within_range(store_list, center_point, radius)
+        response_list, status_code = within_range(store_list, center_point, radius)
 
-        return dumps(response_list), 200
-
-    except Exception as e:
-        return e, 500
+        if status_code == 200:
+            return dumps(response_list), 200
+        return dumps(response_list), 500
+    except Exception as ex:
+        return ex, 500
 
 
 @app.errorhandler(404)
