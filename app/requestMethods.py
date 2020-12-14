@@ -31,7 +31,6 @@ def create_store_record():
     store_list = get_all_stores()
     data = request.get_json()
     try:
-        # data["sid"] = len(store_list) + 1  # needs improvisation
         data["sid"] = str(uuid.uuid4())
         record_created = store_list_collection.insert(data)
         return "", 201
