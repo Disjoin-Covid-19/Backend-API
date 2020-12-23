@@ -1,9 +1,10 @@
 from app import app
 from bson.json_util import dumps
-from flask import request, jsonify
+from flask import request, jsonify, Flask
 import json, jwt, ast
 from pymongo import MongoClient
 from geopy import distance
+from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 
 conn_client = MongoClient(
@@ -14,13 +15,31 @@ store_list_collection = db["storeList"]
 user_list_collection = db["userList"]
 
 
-@app.route("/api/v1/stores", methods=["GET"])
-def get_all_stores():
+@app.route("/api/v1/login", methods=["POST"])
+def user_login():
+    data = request.get_json()
     try:
-        query = store_list_collection.find()
+        user_list = get_all_users(call="local", find_query={"email": data["email"]})
+        for user in user_list:
+            if check_password_hash(user["password"], data["password"]):
+                return str(True)
+            else:
+                return str(False)
+
+    except Exception as e:
+        return e, 500
+
+
+@app.route("/api/v1/stores", methods=["GET"])
+def get_all_stores(call="server", find_query={}):
+    try:
+        query = store_list_collection.find(find_query)
         store_list = [store for store in query]
 
-        return dumps(store_list), 200
+        if call == "server":
+            return dumps(store_list), 200
+        elif call == "local":
+            return store_list
 
     except Exception as e:
         return e, 500
@@ -28,10 +47,15 @@ def get_all_stores():
 
 @app.route("/api/v1/stores", methods=["POST"])
 def create_store_record():
-    store_list = get_all_stores()
     data = request.get_json()
     try:
+        store_list = get_all_stores("local")
+        # for store in store_list:
+        #     if store["name"] == data["name"]:
+        #         return "Store already exists.", 409
+
         data["sid"] = str(uuid.uuid4())
+        data["password"] = generate_password_hash(data["password"])
         record_created = store_list_collection.insert(data)
         return "", 201
     except Exception as e:
@@ -39,12 +63,15 @@ def create_store_record():
 
 
 @app.route("/api/v1/users", methods=["GET"])
-def get_all_users():
+def get_all_users(call="server", find_query={}):
     try:
-        query = user_list_collection.find()
+        query = user_list_collection.find(find_query)
         user_list = [user for user in query]
 
-        return dumps(user_list), 200
+        if call == "server":
+            return dumps(user_list), 200
+        elif call == "local":
+            return user_list
 
     except Exception as e:
         return e, 500
@@ -54,7 +81,13 @@ def get_all_users():
 def create_user_record():
     data = request.get_json()
     try:
-        data["uid"] = str(uuid.uuid4())
+        user_list = get_all_users("local")
+        for user in user_list:
+            if user["email"] == data["email"]:
+                return "User already exists.", 409
+
+        data["id"] = str(uuid.uuid4())
+        data["password"] = generate_password_hash(data["password"])
         record_created = user_list_collection.insert(data)
         return "", 201
     except Exception as e:
@@ -65,7 +98,7 @@ def within_range(store_list, center_point, radius):
     response_list = []
     try:
         for store in store_list:
-            points = store["coordinates"]
+            points = [store["Latitude"], store["Longitude"]]
             store_point_tuple = tuple(points)
             center_point_tuple = tuple(center_point)
 
@@ -83,9 +116,7 @@ def within_range(store_list, center_point, radius):
 def get_stores_by_geofence():
     try:
         data = request.get_json()
-
-        store_collection = store_list_collection.find()
-        store_list = [store for store in store_collection]
+        store_list = get_all_stores("local")
 
         center_point = data["center"]
         radius = data["radius"]
