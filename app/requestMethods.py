@@ -20,11 +20,14 @@ def user_login():
     data = request.get_json()
     try:
         user_list = get_all_users(call="local", find_query={"email": data["email"]})
-        for user in user_list:
-            if check_password_hash(user["password"], data["password"]):
-                return str(True)
-            else:
-                return str(False)
+        if len(user_list) > 0:
+            for user in user_list:
+                if check_password_hash(user["password"], data["password"]):
+                    return str(True)
+                else:
+                    return str(False)
+
+        return str(False)
 
     except Exception as e:
         return e, 500
