@@ -115,6 +115,25 @@ def create_user_record():
         return e, 500
 
 
+@app.route("/api/users", methods=["DELETE"])
+def delete_user():
+    data = request.get_json()
+    try:
+        query = user_list_collection.find({"id": data["id"]})
+        user_list = [user for user in query]
+
+        # Soft Delete
+        user_list[0]["isActive"] = False
+
+        return {
+            "msg": "User Deleted Succesfully.",
+            "status_code": 200
+        }
+
+    except Exception as e:
+        return e, 500
+
+
 def within_range(store_list, center_point, radius):
     response_list = []
     try:
