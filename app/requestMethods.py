@@ -119,16 +119,16 @@ def create_user_record():
 def delete_user():
     data = request.get_json()
     try:
-        query = user_list_collection.find({"id": data["id"]})
-        user_list = [user for user in query]
+        query = {"id": data["id"]}
+        newvalues = {"$set": {"isActive": False}}
 
         # Soft Delete
-        user_list[0]["isActive"] = False
+        try:
+            user_list_collection.update_one(query, newvalues)
+        except Exception as x:
+            return x, 500
 
-        return {
-            "msg": "User Deleted Succesfully.",
-            "status_code": 200
-        }
+        return {"msg": "User Deleted Succesfully.", "status_code": 200}
 
     except Exception as e:
         return e, 500
