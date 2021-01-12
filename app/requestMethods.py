@@ -15,7 +15,7 @@ store_list_collection = db["storeList"]
 user_list_collection = db["userList"]
 
 
-@app.route("/api/login", methods=["POST"])
+@app.route("/api/userLogin", methods=["POST"])
 def user_login():
     data = request.get_json()
     try:
@@ -23,14 +23,32 @@ def user_login():
         if len(user_list) > 0:
             for user in user_list:
                 if check_password_hash(user["password"], data["password"]):
-                    return str(True)
+                    return {"msg": "Login Successful", "status": True}
                 else:
-                    return str(False)
+                    return {"msg": "Incorrect Password", "status": False}
 
-        return str(False)
+        return {"msg": "User does not exist.", "status": False}
 
     except Exception as e:
         return e, 500
+
+
+# @app.route("/api/storeLogin", methods=["POST"])
+# def store_login():
+#     data = request.get_json()
+#     try:
+#         store_list = get_all_stores(call="local", find_query={"email": data["email"]})
+#         if len(store_list) > 0:
+#             for store in store_list:
+#                 if check_password_hash(store["password"], data["password"]):
+#                     return {"msg": "Login Successful", "status": True}
+#                 else:
+#                     return {"msg": "Incorrect Password", "status": False}
+
+#         return {"msg": "User does not exist.", "status": False}
+
+#     except Exception as e:
+#         return e, 500
 
 
 @app.route("/api/stores", methods=["GET"])
