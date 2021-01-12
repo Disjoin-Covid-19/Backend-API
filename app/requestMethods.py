@@ -138,10 +138,7 @@ def within_range(store_list, center_point, radius):
     response_list = []
     try:
         for store in store_list:
-            try:
-                points = [store["Latitude"], store["Longitude"]]
-            except Exception as s:
-                continue
+            points = [store["Latitude"], store["Longitude"]]
             store_point_tuple = tuple(points)
             center_point_tuple = tuple(center_point)
 
