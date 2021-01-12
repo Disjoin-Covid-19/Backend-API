@@ -15,7 +15,7 @@ store_list_collection = db["storeList"]
 user_list_collection = db["userList"]
 
 
-@app.route("/api/v1/login", methods=["POST"])
+@app.route("/api/login", methods=["POST"])
 def user_login():
     data = request.get_json()
     try:
@@ -33,7 +33,7 @@ def user_login():
         return e, 500
 
 
-@app.route("/api/v1/stores", methods=["GET"])
+@app.route("/api/stores", methods=["GET"])
 def get_all_stores(call="server", find_query={}):
     try:
         query = store_list_collection.find(find_query)
@@ -48,7 +48,7 @@ def get_all_stores(call="server", find_query={}):
         return e, 500
 
 
-@app.route("/api/v1/stores", methods=["POST"])
+@app.route("/api/stores", methods=["POST"])
 def create_store_record():
     data = request.get_json()
     try:
@@ -65,7 +65,7 @@ def create_store_record():
         return e, 500
 
 
-@app.route("/api/v1/users", methods=["GET"])
+@app.route("/api/users", methods=["GET"])
 def get_all_users(call="server", find_query={}):
     try:
         query = user_list_collection.find(find_query)
@@ -80,7 +80,7 @@ def get_all_users(call="server", find_query={}):
         return e, 500
 
 
-@app.route("/api/v1/users", methods=["POST"])
+@app.route("/api/users", methods=["POST"])
 def create_user_record():
     data = request.get_json()
     try:
@@ -118,7 +118,7 @@ def within_range(store_list, center_point, radius):
         return e, 500
 
 
-@app.route("/api/v1/geofence_stores", methods=["GET"])
+@app.route("/api/geofence_stores", methods=["GET"])
 def get_stores_by_geofence():
     try:
         data = request.get_json()
