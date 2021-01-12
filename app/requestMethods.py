@@ -101,13 +101,16 @@ def within_range(store_list, center_point, radius):
     response_list = []
     try:
         for store in store_list:
-            points = [store["Latitude"], store["Longitude"]]
+            try:
+                points = [store["Latitude"], store["Longitude"]]
+            except Exception as s:
+                continue
             store_point_tuple = tuple(points)
             center_point_tuple = tuple(center_point)
 
             dis = distance.distance(center_point_tuple, store_point_tuple).miles
 
-            if dis <= radius:
+            if dis > 0 and dis <= radius:
                 response_list.append(store)
 
         return response_list, 200
@@ -137,7 +140,7 @@ def get_stores_by_geofence():
 def page_not_found(e):
     user_message = {
         "err": {
-            "msg": "This route is currently not supported. Please refer API documentation."
+            "msg": "This route is currently not supported. Please refer API documentation or contact admin."
         }
     }
     page_not_found_response = jsonify(user_message)
