@@ -4,6 +4,12 @@
 
 - Delete users
 
-- find distance between user and stores 
+- user login 
 
-- Geofence api used and made for Disjoin 
+- store list
+
+- create new stores
+
+- get stores by geofence range 
+
+- Backend  api used and made for Disjoin 
