@@ -1,4 +1,4 @@
-# GeoFence-API
+# API
 
 - Create users
 
