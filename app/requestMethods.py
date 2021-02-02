@@ -33,22 +33,24 @@ def user_login():
         return e, 500
 
 
-# @app.route("/api/storeLogin", methods=["POST"])
-# def store_login():
-#     data = request.get_json()
-#     try:
-#         store_list = get_all_stores(call="local", find_query={"email": data["email"]})
-#         if len(store_list) > 0:
-#             for store in store_list:
-#                 if check_password_hash(store["password"], data["password"]):
-#                     return {"msg": "Login Successful", "status": True}
-#                 else:
-#                     return {"msg": "Incorrect Password", "status": False}
+@app.route("/api/storeLogin", methods=["POST"])
+def store_login():
+    data = request.get_json()
+    try:
+        store_list = get_all_stores(
+            call="local", find_query={"username": data["username"]}
+        )
+        if len(store_list) > 0:
+            for store in store_list:
+                if check_password_hash(store["password"], data["password"]):
+                    return {"msg": "Login Successful", "status": True}
+                else:
+                    return {"msg": "Incorrect Password", "status": False}
 
-#         return {"msg": "User does not exist.", "status": False}
+        return {"msg": "User does not exist.", "status": False}
 
-#     except Exception as e:
-#         return e, 500
+    except Exception as e:
+        return e, 500
 
 
 @app.route("/api/stores", methods=["GET"])
@@ -71,11 +73,12 @@ def create_store_record():
     data = request.get_json()
     try:
         store_list = get_all_stores("local")
-        # for store in store_list:
-        #     if store["name"] == data["name"]:
-        #         return "Store already exists.", 409
+        for store in store_list:
+            if store["username"] == data["sName"] + "_" + data["city"]:
+                return "Store already exists.", 409
 
         data["sid"] = str(uuid.uuid4())
+        data["username"] = data["sName"] + "_" + data["city"]
         data["password"] = generate_password_hash(data["password"])
         record_created = store_list_collection.insert(data)
         return "", 201
