@@ -1,36 +1,89 @@
 from app import app
 from bson.json_util import dumps
 from flask import request, jsonify, Flask
+from config import db
 import json, jwt, ast
-from pymongo import MongoClient
 from geopy import distance
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
+from datetime import datetime as dt
 
-conn_client = MongoClient(
-    "mongodb+srv://DisJoin:1234@cluster0-bk4u2.mongodb.net/test?retryWrites=true&w=majority"
-)
-db = conn_client["DisJoin_data"]
 store_list_collection = db["storeList"]
 user_list_collection = db["userList"]
+
+
+def get_new_token(data, req="user"):
+    if data:
+        if req == "user":
+            token = jwt.encode(
+                {
+                    "user": data["id"],
+                    "pass": dt.timestamp(dt.utcnow()),
+                },
+                app.config["SECRET_KEY"],
+            )
+        elif req == "store":
+            token = jwt.encode(
+                {
+                    "user": data["sid"],
+                    "pass": dt.timestamp(dt.utcnow),
+                },
+                app.config["SECRET_KEY"],
+            )
+        return True, token
+    return False, ""
+
+
+def validate_token():
+    token = str(request.headers["Authorization"]).split()[1]
+    if not token:
+        return False, 403
+
+    try:
+        data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
+        # Check whether token is expired
+        if (dt.timestamp(dt.utcnow()) - data["pass"]) // (
+            int(app.config["TOKEN_VALID_FOR"]) * 60
+        ) > 0:
+            return False, 403
+        return True, 200
+    except Exception as e:
+        if e:
+            # return False, 500
+            return False, e
+        return False, 403
 
 
 @app.route("/api/userLogin", methods=["POST"])
 def user_login():
     data = request.get_json()
-    try:
-        user_list = get_all_users(call="local", find_query={"email": data["email"]})
-        if len(user_list) > 0:
-            for user in user_list:
-                if check_password_hash(user["password"], data["password"]):
-                    return {"msg": "Login Successful", "status": True}
-                else:
-                    return {"msg": "Incorrect Password", "status": False}
+    if data:
+        try:
+            user_list = get_all_users(call="login", find_query={"email": data["email"]})
+            if user_list:
+                for user in user_list:
+                    if (
+                        check_password_hash(user["password"], data["password"])
+                        and user["email"] == data["email"]
+                    ):
+                        status, token = get_new_token(user)
+                        if status:
+                            return jsonify(
+                                {
+                                    "msg": "Login Successful",
+                                    "status": True,
+                                    "token": str(token)[2:-1],
+                                }
+                            )
+                    else:
+                        return {"msg": "Incorrect Password", "status": False}
 
-        return {"msg": "User does not exist.", "status": False}
+            return {"msg": "User does not exist.", "status": False}
 
-    except Exception as e:
-        return e, 500
+        except Exception as e:
+            return str(e), 500
+        return jsonify({"message": "User unauthorized."}), 401
+    return jsonify({"message": "Invalid Credentials."}), 401
 
 
 @app.route("/api/storeLogin", methods=["POST"])
@@ -50,22 +103,32 @@ def store_login():
         return {"msg": "User does not exist.", "status": False}
 
     except Exception as e:
-        return e, 500
+        return str(e), 500
 
 
 @app.route("/api/stores", methods=["GET"])
 def get_all_stores(call="server", find_query={}):
     try:
-        query = store_list_collection.find(find_query)
-        store_list = [store for store in query]
+        if call == "login":
+            query = store_list_collection.find(find_query)
+            store_list = [store for store in query]
 
-        if call == "server":
-            return dumps(store_list), 200
-        elif call == "local":
             return store_list
+        else:
+            status, code = validate_token()
+            if status:
+                query = store_list_collection.find(find_query)
+                store_list = [store for store in query]
+
+                if call == "server":
+                    return dumps(store_list), 200
+                elif call == "local":
+                    return store_list
+            else:
+                return jsonify({"status": status, "code": code})
 
     except Exception as e:
-        return e, 500
+        return jsonify({"status": False, "code": 500})
 
 
 @app.route("/api/stores", methods=["POST"])
@@ -80,25 +143,36 @@ def create_store_record():
         data["sid"] = str(uuid.uuid4())
         data["username"] = data["sName"] + "_" + data["city"]
         data["password"] = generate_password_hash(data["password"])
+        data["timestampUTC"] = dt.timestamp(dt.utcnow())
         record_created = store_list_collection.insert(data)
         return "", 201
     except Exception as e:
-        return e, 500
+        return str(e), 500
 
 
 @app.route("/api/users", methods=["GET"])
 def get_all_users(call="server", find_query={}):
     try:
-        query = user_list_collection.find(find_query)
-        user_list = [user for user in query]
+        if call == "login":
+            query = user_list_collection.find(find_query)
+            user_list = [user for user in query]
 
-        if call == "server":
-            return dumps(user_list), 200
-        elif call == "local":
             return user_list
+        else:
+            status, code = validate_token()
+            if status:
+                query = user_list_collection.find(find_query)
+                user_list = [user for user in query]
+
+                if call == "server":
+                    return dumps(user_list), 200
+                elif call == "local":
+                    return user_list
+            else:
+                return jsonify({"status": status, "code": code})
 
     except Exception as e:
-        return e, 500
+        return jsonify({"status": False, "code": 500})
 
 
 @app.route("/api/users", methods=["POST"])
@@ -112,29 +186,36 @@ def create_user_record():
 
         data["id"] = str(uuid.uuid4())
         data["password"] = generate_password_hash(data["password"])
+        data["addedDate"] = dt.timestamp(dt.utcnow())
         record_created = user_list_collection.insert(data)
-        return "", 201
+
+        return jsonify({"status": True}), 201
     except Exception as e:
-        return e, 500
+        return jsonify({"status": False}), 500
 
 
 @app.route("/api/users", methods=["DELETE"])
 def delete_user():
     data = request.get_json()
     try:
-        query = {"id": data["id"]}
-        newvalues = {"$set": {"isActive": False}}
+        status, code = validate_token()
+        if status:
+            query = {"id": data["id"]}
 
-        # Soft Delete
-        try:
-            user_list_collection.update_one(query, newvalues)
-        except Exception as x:
-            return x, 500
+            # Soft Delete
+            newvalues = {"$set": {"isActive": False}}
 
-        return {"msg": "User Deleted Succesfully.", "status_code": 200}
+            try:
+                user_list_collection.update_one(query, newvalues)
+            except Exception as x:
+                return jsonify({"status": False}), 500
+
+            return {"msg": "User Deleted Succesfully.", "status_code": 200}
+        else:
+            return jsonify({"status": status, "code": code})
 
     except Exception as e:
-        return e, 500
+        return jsonify({"status": False}), 500
 
 
 def within_range(store_list, center_point, radius):
@@ -149,10 +230,9 @@ def within_range(store_list, center_point, radius):
 
             if dis > 0 and dis <= radius:
                 response_list.append(store)
-
         return response_list, 200
     except Exception as e:
-        return e, 500
+        return jsonify({"err": e}), 500
 
 
 @app.route("/api/geofence_stores", methods=["GET"])
@@ -168,17 +248,15 @@ def get_stores_by_geofence():
 
         if status_code == 200:
             return dumps(response_list), 200
-        return dumps(response_list), 500
+        return dumps(response_list), 501
     except Exception as ex:
-        return ex, 500
+        return jsonify({"err": ex}), 500
 
 
 @app.errorhandler(404)
 def page_not_found(e):
     user_message = {
-        "err": {
-            "msg": "This route is currently not supported. Please refer API documentation or contact admin."
-        }
+        "msg": "This route is currently not supported. Please refer API documentation or contact admin."
     }
     page_not_found_response = jsonify(user_message)
     page_not_found_response.status_code = 404
