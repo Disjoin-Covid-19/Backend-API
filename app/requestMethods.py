@@ -91,7 +91,7 @@ def store_login():
     data = request.get_json()
     try:
         store_list = get_all_stores(
-            call="local", find_query={"username": data["username"]}
+            call="login", find_query={"username": data["username"]}
         )
         if len(store_list) > 0:
             for store in store_list:
@@ -109,21 +109,20 @@ def store_login():
 @app.route("/api/stores", methods=["GET"])
 def get_all_stores(call="server", find_query={}):
     try:
-        if call == "login":
+        if (
+            call == "login" or call == "local"
+        ):  # add geofence if we want to open maps after login (token auth)
             query = store_list_collection.find(find_query)
             store_list = [store for store in query]
 
             return store_list
-        else:
+        elif call == "server":
             status, code = validate_token()
             if status:
                 query = store_list_collection.find(find_query)
                 store_list = [store for store in query]
 
-                if call == "server":
-                    return dumps(store_list), 200
-                elif call == "local":
-                    return store_list
+                return dumps(store_list), 200
             else:
                 return jsonify({"status": status, "code": code})
 
@@ -145,29 +144,26 @@ def create_store_record():
         data["password"] = generate_password_hash(data["password"])
         data["timestampUTC"] = dt.timestamp(dt.utcnow())
         record_created = store_list_collection.insert(data)
-        return "", 201
+        return jsonify({"status": True}), 201
     except Exception as e:
-        return str(e), 500
+        return jsonify({"status": False}), 500
 
 
 @app.route("/api/users", methods=["GET"])
 def get_all_users(call="server", find_query={}):
     try:
-        if call == "login":
+        if call == "login" or call == "local":  # new record or login
             query = user_list_collection.find(find_query)
             user_list = [user for user in query]
 
             return user_list
-        else:
+        elif call == "server":
             status, code = validate_token()
             if status:
                 query = user_list_collection.find(find_query)
                 user_list = [user for user in query]
 
-                if call == "server":
-                    return dumps(user_list), 200
-                elif call == "local":
-                    return user_list
+                return dumps(user_list), 200
             else:
                 return jsonify({"status": status, "code": code})
 

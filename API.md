@@ -18,13 +18,18 @@ API specification:
 3. users:
     - POST:
       {
-        "id":  number,
+        "id":  string,
         "first_name": string,
         "last_name": string,
         "email": string,
+        "username": string,
         "password": string,
-        "address": string,
-        "addedDate": 1614260197.462485
+        "street": string,
+        "city": string,
+        "state": string,
+        "pincode": string,
+        "isActive": true,
+        "addedDate": number
       }
     
     - DELETE:
