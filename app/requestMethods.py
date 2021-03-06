@@ -236,7 +236,6 @@ def get_stores_by_geofence():
     try:
         data = request.get_json()
         store_list = get_all_stores("local")
-        print(store_list)
 
         center_point = data["center"]
         radius = data["radius"]
